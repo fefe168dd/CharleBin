@@ -577,21 +577,6 @@ endif;
 					<span class="small"><?php echo I18n::_('In case this message never disappears please have a look at <a href="%s">this FAQ for information to troubleshoot</a>.', 'https://github.com/PrivateBin/PrivateBin/wiki/FAQ#why-does-the-loading-message-not-go-away'); ?></span>
 				</div>
 			</section>
-			<footer class="container">
-				<div class="row">
-					<h4 class="col-md-5 col-xs-8"><?php echo I18n::_($NAME); ?> <small>- <?php echo I18n::_('Because ignorance is bliss'); ?></small></h4>
-					<p class="col-md-1 col-xs-4 text-center"><?php echo $VERSION; ?></p>
-					<p id="aboutbox" class="col-md-6 col-xs-12">
-						<?php echo sprintf(
-                            I18n::_('%s is a minimalist, open source online pastebin where the server has zero knowledge of pasted data. Data is encrypted/decrypted %sin the browser%s using 256 bits AES.',
-                                I18n::_($NAME),
-                                '%s', '%s'
-                            ),
-                            '<i>', '</i>'), ' ', $INFO, PHP_EOL;
-                        ?>
-					</p>
-				</div>
-			</footer>
 		</main>
 <?php
 if ($DISCUSSION) :
