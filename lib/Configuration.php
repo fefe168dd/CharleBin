@@ -2,12 +2,17 @@
 /**
  * PrivateBin
  *
- * a zero-knowledge paste bin
+ * A zero-knowledge paste bin
  *
- * @link      https://github.com/PrivateBin/PrivateBin
  * @copyright 2012 Sébastien SAUVAGE (sebsauvage.net)
- * @license   https://www.opensource.org/licenses/zlib-license.php The zlib/libpng License
+ * @link      https://github.com/PrivateBin/PrivateBin
+ * @license   https://www.opensource.org/licenses/zlib-license.php
+ * The zlib/libpng License
  * @version   1.5.1
+ * @category
+ * @package   PrivateBin
+ * @author Dirand Félicien
+ *
  */
 
 namespace PrivateBin;
