@@ -35,7 +35,7 @@ abstract class AbstractPersistence
      *
      * @access public
      * @static
-     * @param  AbstractData $store
+     * @param AbstractData $store
      */
     public static function setStore(AbstractData $store)
     {

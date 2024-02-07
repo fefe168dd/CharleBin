@@ -27,8 +27,8 @@ class Paste extends AbstractModel
      * Get paste data.
      *
      * @access public
-     * @throws Exception
      * @return array
+     * @throws Exception
      */
     public function get()
     {
@@ -49,8 +49,7 @@ class Paste extends AbstractModel
         }
 
         // check if non-expired burn after reading paste needs to be deleted
-        if (
-            (array_key_exists('adata', $data) && $data['adata'][3] === 1) ||
+        if ((array_key_exists('adata', $data) && $data['adata'][3] === 1) ||
             (array_key_exists('burnafterreading', $data['meta']) && $data['meta']['burnafterreading'])
         ) {
             $this->delete();
@@ -70,11 +69,11 @@ class Paste extends AbstractModel
         if (!array_key_exists('salt', $data['meta'])) {
             $data['meta']['salt'] = ServerSalt::get();
         }
-        $data['comments']       = array_values($this->getComments());
-        $data['comment_count']  = count($data['comments']);
+        $data['comments'] = array_values($this->getComments());
+        $data['comment_count'] = count($data['comments']);
         $data['comment_offset'] = 0;
-        $data['@context']       = '?jsonld=paste';
-        $this->_data            = $data;
+        $data['@context'] = '?jsonld=paste';
+        $this->_data = $data;
 
         return $this->_data;
     }
@@ -93,14 +92,13 @@ class Paste extends AbstractModel
         }
 
         $this->_data['meta']['created'] = time();
-        $this->_data['meta']['salt']    = ServerSalt::generate();
+        $this->_data['meta']['salt'] = ServerSalt::generate();
 
         // store paste
-        if (
-            $this->_store->create(
-                $this->getId(),
-                $this->_data
-            ) === false
+        if ($this->_store->create(
+            $this->getId(),
+            $this->_data
+        ) === false
         ) {
             throw new Exception('Error saving paste. Sorry.', 76);
         }
@@ -134,8 +132,8 @@ class Paste extends AbstractModel
      * @access public
      * @param string $parentId
      * @param string $commentId
-     * @throws Exception
      * @return Comment
+     * @throws Exception
      */
     public function getComment($parentId, $commentId = '')
     {
@@ -171,25 +169,33 @@ class Paste extends AbstractModel
      *
      * @access public
      * @return string
+     * @throws Exception
+     * @throws Exception
      */
     public function getDeleteToken()
     {
         if (!array_key_exists('salt', $this->_data['meta'])) {
-            $this->get();
+            try {
+                $this->get();
+            } catch (Exception $e) {
+            }
         }
-        return hash_hmac(
-            $this->_conf->getKey('zerobincompatibility') ? 'sha1' : 'sha256',
-            $this->getId(),
-            $this->_data['meta']['salt']
-        );
+        try {
+            return hash_hmac(
+                $this->_conf->getKey('zerobincompatibility') ? 'sha1' : 'sha256',
+                $this->getId(),
+                $this->_data['meta']['salt']
+            );
+        } catch (Exception $e) {
+        }
     }
 
     /**
      * Check if paste has discussions enabled.
      *
      * @access public
-     * @throws Exception
      * @return bool
+     * @throws Exception
      */
     public function isOpendiscussion()
     {
@@ -205,19 +211,27 @@ class Paste extends AbstractModel
      * Sanitizes data to conform with current configuration.
      *
      * @access protected
-     * @param  array $data
+     * @param array $data
      * @return array
+     * @throws Exception
+     * @throws Exception
      */
     protected function _sanitize(array $data)
     {
         $expiration = $data['meta']['expire'];
         unset($data['meta']['expire']);
-        $expire_options = $this->_conf->getSection('expire_options');
+        try {
+            $expire_options = $this->_conf->getSection('expire_options');
+        } catch (Exception $e) {
+        }
         if (array_key_exists($expiration, $expire_options)) {
             $expire = $expire_options[$expiration];
         } else {
             // using getKey() to ensure a default value is present
-            $expire = $this->_conf->getKey($this->_conf->getKey('default', 'expire'), 'expire_options');
+            try {
+                $expire = $this->_conf->getKey($this->_conf->getKey('default', 'expire'), 'expire_options');
+            } catch (Exception $e) {
+            }
         }
         if ($expire > 0) {
             $data['meta']['expire_date'] = time() + $expire;
@@ -229,7 +243,7 @@ class Paste extends AbstractModel
      * Validate data.
      *
      * @access protected
-     * @param  array $data
+     * @param array $data
      * @throws Exception
      */
     protected function _validate(array $data)
@@ -240,11 +254,10 @@ class Paste extends AbstractModel
         }
 
         // discussion requested, but disabled in config or burn after reading requested as well, or invalid integer
-        if (
-            ($data['adata'][2] === 1 && ( // open discussion flag
-                !$this->_conf->getKey('discussion') ||
-                $data['adata'][3] === 1  // burn after reading flag
-            )) ||
+        if (($data['adata'][2] === 1 && ( // open discussion flag
+            !$this->_conf->getKey('discussion') ||
+            $data['adata'][3] === 1  // burn after reading flag
+        )) ||
             ($data['adata'][2] !== 0 && $data['adata'][2] !== 1)
         ) {
             throw new Exception('Invalid data.', 74);

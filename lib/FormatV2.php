@@ -26,13 +26,13 @@ class FormatV2
      *
      * @access public
      * @static
-     * @param  array $message
-     * @param  bool  $isComment
+     * @param array $message
+     * @param bool $isComment
      * @return bool
      */
     public static function isValid($message, $isComment = false)
     {
-        $required_keys = array('adata', 'v', 'ct');
+        $required_keys = ['adata', 'v', 'ct'];
         if ($isComment) {
             $required_keys[] = 'pasteid';
             $required_keys[] = 'parentid';
@@ -93,11 +93,11 @@ class FormatV2
             return false;
         }
         // - key size
-        if (!in_array($cipherParams[3], array(128, 192, 256), true)) {
+        if (!in_array($cipherParams[3], [128, 192, 256], true)) {
             return false;
         }
         // - tag size
-        if (!in_array($cipherParams[4], array(64, 96, 128), true)) {
+        if (!in_array($cipherParams[4], [64, 96, 128], true)) {
             return false;
         }
         // - algorithm, must be AES
@@ -105,11 +105,11 @@ class FormatV2
             return false;
         }
         // - mode
-        if (!in_array($cipherParams[6], array('ctr', 'cbc', 'gcm'), true)) {
+        if (!in_array($cipherParams[6], ['ctr', 'cbc', 'gcm'], true)) {
             return false;
         }
         // - compression
-        if (!in_array($cipherParams[7], array('zlib', 'none'), true)) {
+        if (!in_array($cipherParams[7], ['zlib', 'none'], true)) {
             return false;
         }
 
@@ -121,8 +121,8 @@ class FormatV2
         // require only the key 'expire' in the metadata of pastes
         if (!$isComment && (
             count($message['meta']) === 0 ||
-            !array_key_exists('expire', $message['meta']) ||
-            count($message['meta']) > 1
+                !array_key_exists('expire', $message['meta']) ||
+                count($message['meta']) > 1
         )) {
             return false;
         }

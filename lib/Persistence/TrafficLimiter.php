@@ -68,18 +68,32 @@ class TrafficLimiter extends AbstractPersistence
      * @access public
      * @static
      * @param Configuration $conf
+     * @throws Exception
+     * @throws Exception
      */
     public static function setConfiguration(Configuration $conf)
     {
-        self::setCreators($conf->getKey('creators', 'traffic'));
-        self::setExempted($conf->getKey('exempted', 'traffic'));
-        self::setLimit($conf->getKey('limit', 'traffic'));
+        try {
+            self::setCreators($conf->getKey('creators', 'traffic'));
+        } catch (Exception $e) {
+        }
+        try {
+            self::setExempted($conf->getKey('exempted', 'traffic'));
+        } catch (Exception $e) {
+        }
+        try {
+            self::setLimit($conf->getKey('limit', 'traffic'));
+        } catch (Exception $e) {
+        }
 
-        if (($option = $conf->getKey('header', 'traffic')) !== '') {
-            $httpHeader = 'HTTP_' . $option;
-            if (array_key_exists($httpHeader, $_SERVER) && !empty($_SERVER[$httpHeader])) {
-                self::$_ipKey = $httpHeader;
+        try {
+            if (($option = $conf->getKey('header', 'traffic')) !== '') {
+                $httpHeader = 'HTTP_' . $option;
+                if (array_key_exists($httpHeader, $_SERVER) && !empty($_SERVER[$httpHeader])) {
+                    self::$_ipKey = $httpHeader;
+                }
             }
+        } catch (Exception $e) {
         }
     }
 
@@ -112,7 +126,7 @@ class TrafficLimiter extends AbstractPersistence
      *
      * @access public
      * @static
-     * @param  int $limit
+     * @param int $limit
      */
     public static function setLimit($limit)
     {
@@ -124,7 +138,7 @@ class TrafficLimiter extends AbstractPersistence
      *
      * @access public
      * @static
-     * @param  string $algo
+     * @param string $algo
      * @return string
      */
     public static function getHash($algo = 'sha512')
@@ -137,7 +151,7 @@ class TrafficLimiter extends AbstractPersistence
      *
      * @access private
      * @static
-     * @param  string $ipRange
+     * @param string $ipRange
      * @return bool
      */
     private static function matchIp($ipRange = null)
@@ -146,7 +160,7 @@ class TrafficLimiter extends AbstractPersistence
             $ipRange = trim($ipRange);
         }
         $address = Factory::parseAddressString($_SERVER[self::$_ipKey]);
-        $range   = Factory::parseRangeString(
+        $range = Factory::parseRangeString(
             $ipRange,
             ParseStringFlag::IPV4_MAYBE_NON_DECIMAL | ParseStringFlag::IPV4SUBNET_MAYBE_COMPACT | ParseStringFlag::IPV4ADDRESS_MAYBE_NON_QUAD_DOTTED
         );
@@ -168,8 +182,8 @@ class TrafficLimiter extends AbstractPersistence
      *
      * @access public
      * @static
-     * @throws Exception
      * @return true
+     * @throws Exception
      */
     public static function canPass()
     {
@@ -202,13 +216,13 @@ class TrafficLimiter extends AbstractPersistence
 
         // used as array key, which are limited in length, hence using algo with shorter range
         $hash = self::getHash('sha256');
-        $now  = time();
-        $tl   = (int) self::$_store->getValue('traffic_limiter', $hash);
+        $now = time();
+        $tl = (int) self::$_store->getValue('traffic_limiter', $hash);
         self::$_store->purgeValues('traffic_limiter', $now - self::$_limit);
         if ($tl > 0 && ($tl + self::$_limit >= $now)) {
             $result = false;
         } else {
-            $tl     = time();
+            $tl = time();
             $result = true;
         }
         if (!self::$_store->setValue((string) $tl, 'traffic_limiter', $hash)) {

@@ -27,14 +27,14 @@ class View
      * @access private
      * @var    array
      */
-    private $_variables = array();
+    private $_variables = [];
 
     /**
      * assign variables to be used inside of the template
      *
      * @access public
-     * @param  string $name
-     * @param  mixed  $value
+     * @param string $name
+     * @param mixed $value
      */
     public function assign($name, $value)
     {
@@ -45,12 +45,12 @@ class View
      * render a template
      *
      * @access public
-     * @param  string $template
+     * @param string $template
      * @throws Exception
      */
     public function draw($template)
     {
-        $file = substr($template, 0, 9) === 'bootstrap' ? 'bootstrap' : $template;
+        $file = str_starts_with($template, 'bootstrap') ? 'bootstrap' : $template;
         $path = PATH . 'tpl' . DIRECTORY_SEPARATOR . $file . '.php';
         if (!file_exists($path)) {
             throw new Exception('Template ' . $template . ' not found!', 80);

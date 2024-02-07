@@ -53,9 +53,8 @@ class Database extends AbstractData
      * instantiates a new Database data backend
      *
      * @access public
-     * @param  array $options
+     * @param array $options
      * @throws Exception
-     * @return
      */
     public function __construct(array $options)
     {
@@ -65,17 +64,16 @@ class Database extends AbstractData
         }
 
         // initialize the db connection with new options
-        if (
-            array_key_exists('dsn', $options) &&
+        if (array_key_exists('dsn', $options) &&
             array_key_exists('usr', $options) &&
             array_key_exists('pwd', $options) &&
             array_key_exists('opt', $options)
         ) {
             // set default options
-            $options['opt'][PDO::ATTR_ERRMODE]          = PDO::ERRMODE_EXCEPTION;
+            $options['opt'][PDO::ATTR_ERRMODE] = PDO::ERRMODE_EXCEPTION;
             $options['opt'][PDO::ATTR_EMULATE_PREPARES] = false;
-            $options['opt'][PDO::ATTR_PERSISTENT]       = true;
-            $db_tables_exist                            = true;
+            $options['opt'][PDO::ATTR_PERSISTENT] = true;
+            $db_tables_exist = true;
 
             // setup type and dabase connection
             $this->_type = strtolower(
@@ -87,7 +85,7 @@ class Database extends AbstractData
                 $options['opt'][PDO::MYSQL_ATTR_INIT_COMMAND] = "SET SESSION sql_mode='ANSI_QUOTES'";
             }
             $tableQuery = $this->_getTableQuery($this->_type);
-            $this->_db  = new PDO(
+            $this->_db = new PDO(
                 $options['dsn'],
                 $options['usr'],
                 $options['pwd'],
@@ -127,7 +125,8 @@ class Database extends AbstractData
             }
         } else {
             throw new Exception(
-                'Missing configuration for key dsn, usr, pwd or opt in the section model_options, please check your configuration file', 6
+                'Missing configuration for key dsn, usr, pwd or opt in the section model_options, please check your configuration file',
+                6
             );
         }
     }
@@ -136,19 +135,19 @@ class Database extends AbstractData
      * Create a paste.
      *
      * @access public
-     * @param  string $pasteid
-     * @param  array  $paste
+     * @param string $pasteid
+     * @param array $paste
      * @return bool
      */
     public function create($pasteid, array $paste)
     {
-        $expire_date      = 0;
-        $opendiscussion   = $burnafterreading = false;
-        $attachment       = $attachmentname   = null;
-        $meta             = $paste['meta'];
-        $isVersion1       = array_key_exists('data', $paste);
-        list($createdKey) = $this->_getVersionedKeys($isVersion1 ? 1 : 2);
-        $created          = (int) $meta[$createdKey];
+        $expire_date = 0;
+        $opendiscussion = $burnafterreading = false;
+        $attachment = $attachmentname = null;
+        $meta = $paste['meta'];
+        $isVersion1 = array_key_exists('data', $paste);
+        [$createdKey] = $this->_getVersionedKeys($isVersion1 ? 1 : 2);
+        $created = (int) $meta[$createdKey];
         unset($meta[$createdKey], $paste['meta']);
         if (array_key_exists('expire_date', $meta)) {
             $expire_date = (int) $meta['expire_date'];
@@ -172,14 +171,14 @@ class Database extends AbstractData
                 unset($meta['attachmentname']);
             }
         } else {
-            $opendiscussion   = $paste['adata'][2];
+            $opendiscussion = $paste['adata'][2];
             $burnafterreading = $paste['adata'][3];
         }
         try {
             return $this->_exec(
                 'INSERT INTO "' . $this->_sanitizeIdentifier('paste') .
                 '" VALUES(?,?,?,?,?,?,?,?,?)',
-                array(
+                [
                     $pasteid,
                     $isVersion1 ? $paste['data'] : Json::encode($paste),
                     $created,
@@ -189,7 +188,7 @@ class Database extends AbstractData
                     Json::encode($meta),
                     $attachment,
                     $attachmentname,
-                )
+                ]
             );
         } catch (Exception $e) {
             return false;
@@ -200,15 +199,19 @@ class Database extends AbstractData
      * Read a paste.
      *
      * @access public
-     * @param  string $pasteid
+     * @param string $pasteid
      * @return array|false
+     * @throws Exception
+     * @throws Exception
      */
     public function read($pasteid)
     {
         try {
             $row = $this->_select(
                 'SELECT * FROM "' . $this->_sanitizeIdentifier('paste') .
-                '" WHERE "dataid" = ?', array($pasteid), true
+                '" WHERE "dataid" = ?',
+                [$pasteid],
+                true
             );
         } catch (Exception $e) {
             $row = false;
@@ -217,25 +220,28 @@ class Database extends AbstractData
             return false;
         }
         // create array
-        $data       = Json::decode($row['data']);
+        try {
+            $data = Json::decode($row['data']);
+        } catch (Exception $e) {
+        }
         $isVersion2 = array_key_exists('v', $data) && $data['v'] >= 2;
         if ($isVersion2) {
-            $paste            = $data;
-            list($createdKey) = $this->_getVersionedKeys(2);
+            $paste = $data;
+            [$createdKey] = $this->_getVersionedKeys(2);
         } else {
-            $paste            = array('data' => $row['data']);
-            list($createdKey) = $this->_getVersionedKeys(1);
+            $paste = ['data' => $row['data']];
+            [$createdKey] = $this->_getVersionedKeys(1);
         }
 
         try {
             $row['meta'] = Json::decode($row['meta']);
         } catch (Exception $e) {
-            $row['meta'] = array();
+            $row['meta'] = [];
         }
-        $row                        = self::upgradePreV1Format($row);
-        $paste['meta']              = $row['meta'];
+        $row = self::upgradePreV1Format($row);
+        $paste['meta'] = $row['meta'];
         $paste['meta'][$createdKey] = (int) $row['postdate'];
-        $expire_date                = (int) $row['expiredate'];
+        $expire_date = (int) $row['expiredate'];
         if ($expire_date > 0) {
             $paste['meta']['expire_date'] = $expire_date;
         }
@@ -264,17 +270,19 @@ class Database extends AbstractData
      * Delete a paste and its discussion.
      *
      * @access public
-     * @param  string $pasteid
+     * @param string $pasteid
      */
     public function delete($pasteid)
     {
         $this->_exec(
             'DELETE FROM "' . $this->_sanitizeIdentifier('paste') .
-            '" WHERE "dataid" = ?', array($pasteid)
+            '" WHERE "dataid" = ?',
+            [$pasteid]
         );
         $this->_exec(
             'DELETE FROM "' . $this->_sanitizeIdentifier('comment') .
-            '" WHERE "pasteid" = ?', array($pasteid)
+            '" WHERE "pasteid" = ?',
+            [$pasteid]
         );
     }
 
@@ -282,7 +290,7 @@ class Database extends AbstractData
      * Test if a paste exists.
      *
      * @access public
-     * @param  string $pasteid
+     * @param string $pasteid
      * @return bool
      */
     public function exists($pasteid)
@@ -290,7 +298,9 @@ class Database extends AbstractData
         try {
             $row = $this->_select(
                 'SELECT "dataid" FROM "' . $this->_sanitizeIdentifier('paste') .
-                '" WHERE "dataid" = ?', array($pasteid), true
+                '" WHERE "dataid" = ?',
+                [$pasteid],
+                true
             );
         } catch (Exception $e) {
             return false;
@@ -302,25 +312,30 @@ class Database extends AbstractData
      * Create a comment in a paste.
      *
      * @access public
-     * @param  string $pasteid
-     * @param  string $parentid
-     * @param  string $commentid
-     * @param  array  $comment
+     * @param string $pasteid
+     * @param string $parentid
+     * @param string $commentid
+     * @param array $comment
      * @return bool
+     * @throws Exception
+     * @throws Exception
      */
     public function createComment($pasteid, $parentid, $commentid, array $comment)
     {
         if (array_key_exists('data', $comment)) {
             $version = 1;
-            $data    = $comment['data'];
+            $data = $comment['data'];
         } else {
             $version = 2;
-            $data    = Json::encode($comment);
+            try {
+                $data = Json::encode($comment);
+            } catch (Exception $e) {
+            }
         }
-        list($createdKey, $iconKey) = $this->_getVersionedKeys($version);
-        $meta                       = $comment['meta'];
+        [$createdKey, $iconKey] = $this->_getVersionedKeys($version);
+        $meta = $comment['meta'];
         unset($comment['meta']);
-        foreach (array('nickname', $iconKey) as $key) {
+        foreach (['nickname', $iconKey] as $key) {
             if (!array_key_exists($key, $meta)) {
                 $meta[$key] = null;
             }
@@ -329,7 +344,7 @@ class Database extends AbstractData
             return $this->_exec(
                 'INSERT INTO "' . $this->_sanitizeIdentifier('comment') .
                 '" VALUES(?,?,?,?,?,?,?)',
-                array(
+                [
                     $commentid,
                     $pasteid,
                     $parentid,
@@ -337,7 +352,7 @@ class Database extends AbstractData
                     $meta['nickname'],
                     $meta[$iconKey],
                     $meta[$createdKey],
-                )
+                ]
             );
         } catch (Exception $e) {
             return false;
@@ -348,34 +363,40 @@ class Database extends AbstractData
      * Read all comments of paste.
      *
      * @access public
-     * @param  string $pasteid
+     * @param string $pasteid
      * @return array
+     * @throws Exception
+     * @throws Exception
      */
     public function readComments($pasteid)
     {
         $rows = $this->_select(
             'SELECT * FROM "' . $this->_sanitizeIdentifier('comment') .
-            '" WHERE "pasteid" = ?', array($pasteid)
+            '" WHERE "pasteid" = ?',
+            [$pasteid]
         );
 
         // create comment list
-        $comments = array();
+        $comments = [];
         if (is_array($rows) && count($rows)) {
             foreach ($rows as $row) {
-                $i    = $this->getOpenSlot($comments, (int) $row['postdate']);
-                $data = Json::decode($row['data']);
+                $i = $this->getOpenSlot($comments, (int) $row['postdate']);
+                try {
+                    $data = Json::decode($row['data']);
+                } catch (Exception $e) {
+                }
                 if (array_key_exists('v', $data) && $data['v'] >= 2) {
-                    $version      = 2;
+                    $version = 2;
                     $comments[$i] = $data;
                 } else {
-                    $version      = 1;
-                    $comments[$i] = array('data' => $row['data']);
+                    $version = 1;
+                    $comments[$i] = ['data' => $row['data']];
                 }
-                list($createdKey, $iconKey) = $this->_getVersionedKeys($version);
-                $comments[$i]['id']         = $row['dataid'];
-                $comments[$i]['parentid']   = $row['parentid'];
-                $comments[$i]['meta']       = array($createdKey => (int) $row['postdate']);
-                foreach (array('nickname' => 'nickname', 'vizhash' => $iconKey) as $rowKey => $commentKey) {
+                [$createdKey, $iconKey] = $this->_getVersionedKeys($version);
+                $comments[$i]['id'] = $row['dataid'];
+                $comments[$i]['parentid'] = $row['parentid'];
+                $comments[$i]['meta'] = [$createdKey => (int) $row['postdate']];
+                foreach (['nickname' => 'nickname', 'vizhash' => $iconKey] as $rowKey => $commentKey) {
                     if (array_key_exists($rowKey, $row) && !empty($row[$rowKey])) {
                         $comments[$i]['meta'][$commentKey] = $row[$rowKey];
                     }
@@ -390,9 +411,9 @@ class Database extends AbstractData
      * Test if a comment exists.
      *
      * @access public
-     * @param  string $pasteid
-     * @param  string $parentid
-     * @param  string $commentid
+     * @param string $pasteid
+     * @param string $parentid
+     * @param string $commentid
      * @return bool
      */
     public function existsComment($pasteid, $parentid, $commentid)
@@ -401,7 +422,8 @@ class Database extends AbstractData
             return (bool) $this->_select(
                 'SELECT "dataid" FROM "' . $this->_sanitizeIdentifier('comment') .
                 '" WHERE "pasteid" = ? AND "parentid" = ? AND "dataid" = ?',
-                array($pasteid, $parentid, $commentid), true
+                [$pasteid, $parentid, $commentid],
+                true
             );
         } catch (Exception $e) {
             return false;
@@ -412,9 +434,9 @@ class Database extends AbstractData
      * Save a value.
      *
      * @access public
-     * @param  string $value
-     * @param  string $namespace
-     * @param  string $key
+     * @param string $value
+     * @param string $namespace
+     * @param string $key
      * @return bool
      */
     public function setValue($value, $namespace, $key = '')
@@ -430,7 +452,7 @@ class Database extends AbstractData
         return $this->_exec(
             'UPDATE "' . $this->_sanitizeIdentifier('config') .
             '" SET "value" = ? WHERE "id" = ?',
-            array($value, strtoupper($namespace))
+            [$value, strtoupper($namespace)]
         );
     }
 
@@ -438,26 +460,26 @@ class Database extends AbstractData
      * Load a value.
      *
      * @access public
-     * @param  string $namespace
-     * @param  string $key
+     * @param string $namespace
+     * @param string $key
      * @return string
      */
     public function getValue($namespace, $key = '')
     {
         $configKey = strtoupper($namespace);
-        $value     = $this->_getConfig($configKey);
+        $value = $this->_getConfig($configKey);
         if ($value === '') {
             // initialize the row, so that setValue can rely on UPDATE queries
             $this->_exec(
                 'INSERT INTO "' . $this->_sanitizeIdentifier('config') .
                 '" VALUES(?,?)',
-                array($configKey, '')
+                [$configKey, '']
             );
 
             // migrate filesystem based salt into database
             $file = 'data' . DIRECTORY_SEPARATOR . 'salt.php';
             if ($namespace === 'salt' && is_readable($file)) {
-                $fs    = new Filesystem(array('dir' => 'data'));
+                $fs = new Filesystem(['dir' => 'data']);
                 $value = $fs->getValue('salt');
                 $this->setValue($value, 'salt');
                 @unlink($file);
@@ -468,7 +490,7 @@ class Database extends AbstractData
             try {
                 $this->_last_cache = Json::decode($value);
             } catch (Exception $e) {
-                $this->_last_cache = array();
+                $this->_last_cache = [];
             }
             if (array_key_exists($key, $this->_last_cache)) {
                 return $this->_last_cache[$key];
@@ -481,7 +503,7 @@ class Database extends AbstractData
      * Returns up to batch size number of paste ids that have expired
      *
      * @access private
-     * @param  int $batchsize
+     * @param int $batchsize
      * @return array
      */
     protected function _getExpiredPastes($batchsize)
@@ -491,7 +513,7 @@ class Database extends AbstractData
             '" WHERE "expiredate" < ? AND "expiredate" != ? ' .
             ($this->_type === 'oci' ? 'FETCH NEXT ? ROWS ONLY' : 'LIMIT ?')
         );
-        $statement->execute(array(time(), 0, $batchsize));
+        $statement->execute([time(), 0, $batchsize]);
         return $statement->fetchAll(PDO::FETCH_COLUMN, 0);
     }
 
@@ -509,10 +531,10 @@ class Database extends AbstractData
      * execute a statement
      *
      * @access private
-     * @param  string $sql
-     * @param  array $params
-     * @throws PDOException
+     * @param string $sql
+     * @param array $params
      * @return bool
+     * @throws PDOException
      */
     private function _exec($sql, array $params)
     {
@@ -536,11 +558,11 @@ class Database extends AbstractData
      * run a select statement
      *
      * @access private
-     * @param  string $sql
-     * @param  array $params
-     * @param  bool $firstOnly if only the first row should be returned
-     * @throws PDOException
+     * @param string $sql
+     * @param array $params
+     * @param bool $firstOnly if only the first row should be returned
      * @return array|false
+     * @throws PDOException
      */
     private function _select($sql, array $params, $firstOnly = false)
     {
@@ -550,7 +572,7 @@ class Database extends AbstractData
             $result = $statement->fetch(PDO::FETCH_ASSOC);
         } elseif ($this->_type === 'oci') {
             // workaround for https://bugs.php.net/bug.php?id=46728
-            $result = array();
+            $result = [];
             while ($row = $statement->fetch(PDO::FETCH_ASSOC)) {
                 $result[] = array_map('PrivateBin\Data\Database::_sanitizeClob', $row);
             }
@@ -571,69 +593,54 @@ class Database extends AbstractData
      * get version dependent key names
      *
      * @access private
-     * @param  int $version
+     * @param int $version
      * @return array
      */
     private function _getVersionedKeys($version)
     {
         if ($version === 1) {
-            return array('postdate', 'vizhash');
+            return ['postdate', 'vizhash'];
         }
-        return array('created', 'icon');
+        return ['created', 'icon'];
     }
 
     /**
      * get table list query, depending on the database type
      *
      * @access private
-     * @param  string $type
-     * @throws Exception
+     * @param string $type
      * @return string
+     * @throws Exception
      */
     private function _getTableQuery($type)
     {
-        switch ($type) {
-            case 'ibm':
-                $sql = 'SELECT "tabname" FROM "SYSCAT"."TABLES"';
-                break;
-            case 'informix':
-                $sql = 'SELECT "tabname" FROM "systables"';
-                break;
-            case 'mssql':
-                // U: tables created by the user
-                $sql = 'SELECT "name" FROM "sysobjects" '
-                     . 'WHERE "type" = \'U\' ORDER BY "name"';
-                break;
-            case 'mysql':
-                $sql = 'SHOW TABLES';
-                break;
-            case 'oci':
-                $sql = 'SELECT table_name FROM all_tables';
-                break;
-            case 'pgsql':
-                $sql = 'SELECT c."relname" AS "table_name" '
-                     . 'FROM "pg_class" c, "pg_user" u '
-                     . 'WHERE c."relowner" = u."usesysid" AND c."relkind" = \'r\' '
-                     . 'AND NOT EXISTS (SELECT 1 FROM "pg_views" WHERE "viewname" = c."relname") '
-                     . "AND c.\"relname\" !~ '^(pg_|sql_)' "
-                     . 'UNION '
-                     . 'SELECT c."relname" AS "table_name" '
-                     . 'FROM "pg_class" c '
-                     . "WHERE c.\"relkind\" = 'r' "
-                     . 'AND NOT EXISTS (SELECT 1 FROM "pg_views" WHERE "viewname" = c."relname") '
-                     . 'AND NOT EXISTS (SELECT 1 FROM "pg_user" WHERE "usesysid" = c."relowner") '
-                     . "AND c.\"relname\" !~ '^pg_'";
-                break;
-            case 'sqlite':
-                $sql = 'SELECT "name" FROM "sqlite_master" WHERE "type"=\'table\' '
-                     . 'UNION ALL SELECT "name" FROM "sqlite_temp_master" '
-                     . 'WHERE "type"=\'table\' ORDER BY "name"';
-                break;
-            default:
-                throw new Exception(
-                    "PDO type $type is currently not supported.", 5
-                );
-        }
+        $sql = match ($type) {
+            'ibm' => 'SELECT "tabname" FROM "SYSCAT"."TABLES"',
+            'informix' => 'SELECT "tabname" FROM "systables"',
+            'mssql' => 'SELECT "name" FROM "sysobjects" '
+                . 'WHERE "type" = \'U\' ORDER BY "name"',
+            'mysql' => 'SHOW TABLES',
+            'oci' => 'SELECT table_name FROM all_tables',
+            'pgsql' => 'SELECT c."relname" AS "table_name" '
+                . 'FROM "pg_class" c, "pg_user" u '
+                . 'WHERE c."relowner" = u."usesysid" AND c."relkind" = \'r\' '
+                . 'AND NOT EXISTS (SELECT 1 FROM "pg_views" WHERE "viewname" = c."relname") '
+                . "AND c.\"relname\" !~ '^(pg_|sql_)' "
+                . 'UNION '
+                . 'SELECT c."relname" AS "table_name" '
+                . 'FROM "pg_class" c '
+                . "WHERE c.\"relkind\" = 'r' "
+                . 'AND NOT EXISTS (SELECT 1 FROM "pg_views" WHERE "viewname" = c."relname") '
+                . 'AND NOT EXISTS (SELECT 1 FROM "pg_user" WHERE "usesysid" = c."relowner") '
+                . "AND c.\"relname\" !~ '^pg_'",
+            'sqlite' => 'SELECT "name" FROM "sqlite_master" WHERE "type"=\'table\' '
+                . 'UNION ALL SELECT "name" FROM "sqlite_temp_master" '
+                . 'WHERE "type"=\'table\' ORDER BY "name"',
+            default => throw new Exception(
+                "PDO type $type is currently not supported.",
+                5
+            ),
+        };
         return $sql;
     }
 
@@ -641,7 +648,7 @@ class Database extends AbstractData
      * get a value by key from the config table
      *
      * @access private
-     * @param  string $key
+     * @param string $key
      * @return string
      */
     private function _getConfig($key)
@@ -649,7 +656,9 @@ class Database extends AbstractData
         try {
             $row = $this->_select(
                 'SELECT "value" FROM "' . $this->_sanitizeIdentifier('config') .
-                '" WHERE "id" = ?', array($key), true
+                '" WHERE "id" = ?',
+                [$key],
+                true
             );
         } catch (PDOException $e) {
             return '';
@@ -661,7 +670,7 @@ class Database extends AbstractData
      * get the primary key clauses, depending on the database driver
      *
      * @access private
-     * @param  string $key
+     * @param string $key
      * @return array
      */
     private function _getPrimaryKeyClauses($key = 'dataid')
@@ -676,7 +685,7 @@ class Database extends AbstractData
                 $main_key = ' PRIMARY KEY';
                 break;
         }
-        return array($main_key, $after_key);
+        return [$main_key, $after_key];
     }
 
     /**
@@ -689,14 +698,11 @@ class Database extends AbstractData
      */
     private function _getDataType()
     {
-        switch ($this->_type) {
-            case 'oci':
-                return 'CLOB';
-            case 'pgsql':
-                return 'TEXT';
-            default:
-                return 'BLOB';
-        }
+        return match ($this->_type) {
+            'oci' => 'CLOB',
+            'pgsql' => 'TEXT',
+            default => 'BLOB',
+        };
     }
 
     /**
@@ -709,14 +715,11 @@ class Database extends AbstractData
      */
     private function _getAttachmentType()
     {
-        switch ($this->_type) {
-            case 'oci':
-                return 'CLOB';
-            case 'pgsql':
-                return 'TEXT';
-            default:
-                return 'MEDIUMBLOB';
-        }
+        return match ($this->_type) {
+            'oci' => 'CLOB',
+            'pgsql' => 'TEXT',
+            default => 'MEDIUMBLOB',
+        };
     }
 
     /**
@@ -729,12 +732,10 @@ class Database extends AbstractData
      */
     private function _getMetaType()
     {
-        switch ($this->_type) {
-            case 'oci':
-                return 'VARCHAR2(4000)';
-            default:
-                return 'TEXT';
-        }
+        return match ($this->_type) {
+            'oci' => 'VARCHAR2(4000)',
+            default => 'TEXT',
+        };
     }
 
     /**
@@ -744,10 +745,10 @@ class Database extends AbstractData
      */
     private function _createPasteTable()
     {
-        list($main_key, $after_key) = $this->_getPrimaryKeyClauses();
-        $dataType                   = $this->_getDataType();
-        $attachmentType             = $this->_getAttachmentType();
-        $metaType                   = $this->_getMetaType();
+        [$main_key, $after_key] = $this->_getPrimaryKeyClauses();
+        $dataType = $this->_getDataType();
+        $attachmentType = $this->_getAttachmentType();
+        $metaType = $this->_getMetaType();
         $this->_db->exec(
             'CREATE TABLE "' . $this->_sanitizeIdentifier('paste') . '" ( ' .
             "\"dataid\" CHAR(16) NOT NULL$main_key, " .
@@ -769,8 +770,8 @@ class Database extends AbstractData
      */
     private function _createCommentTable()
     {
-        list($main_key, $after_key) = $this->_getPrimaryKeyClauses();
-        $dataType                   = $this->_getDataType();
+        [$main_key, $after_key] = $this->_getPrimaryKeyClauses();
+        $dataType = $this->_getDataType();
         $this->_db->exec(
             'CREATE TABLE "' . $this->_sanitizeIdentifier('comment') . '" ( ' .
             "\"dataid\" CHAR(16) NOT NULL$main_key, " .
@@ -812,9 +813,9 @@ class Database extends AbstractData
      */
     private function _createConfigTable()
     {
-        list($main_key, $after_key) = $this->_getPrimaryKeyClauses('id');
-        $charType                   = $this->_type === 'oci' ? 'VARCHAR2(16)' : 'CHAR(16)';
-        $textType                   = $this->_getMetaType();
+        [$main_key, $after_key] = $this->_getPrimaryKeyClauses('id');
+        $charType = $this->_type === 'oci' ? 'VARCHAR2(16)' : 'CHAR(16)';
+        $textType = $this->_getMetaType();
         $this->_db->exec(
             'CREATE TABLE "' . $this->_sanitizeIdentifier('config') .
             "\" ( \"id\" $charType NOT NULL$main_key, \"value\" $textType$after_key )"
@@ -822,7 +823,7 @@ class Database extends AbstractData
         $this->_exec(
             'INSERT INTO "' . $this->_sanitizeIdentifier('config') .
             '" VALUES(?,?)',
-            array('VERSION', Controller::VERSION)
+            ['VERSION', Controller::VERSION]
         );
     }
 
@@ -833,7 +834,7 @@ class Database extends AbstractData
      *
      * @access public
      * @static
-     * @param  int|string|resource $value
+     * @param int|string|resource $value
      * @return int|string
      */
     public static function _sanitizeClob($value)
@@ -848,7 +849,7 @@ class Database extends AbstractData
      * sanitizes identifiers
      *
      * @access private
-     * @param  string $identifier
+     * @param string $identifier
      * @return string
      */
     private function _sanitizeIdentifier($identifier)
@@ -860,11 +861,11 @@ class Database extends AbstractData
      * upgrade the database schema from an old version
      *
      * @access private
-     * @param  string $oldversion
+     * @param string $oldversion
      */
     private function _upgradeDatabase($oldversion)
     {
-        $dataType       = $this->_getDataType();
+        $dataType = $this->_getDataType();
         $attachmentType = $this->_getAttachmentType();
         switch ($oldversion) {
             case '0.21':
@@ -931,7 +932,7 @@ class Database extends AbstractData
                 $this->_exec(
                     'UPDATE "' . $this->_sanitizeIdentifier('config') .
                     '" SET "value" = ? WHERE "id" = ?',
-                    array(Controller::VERSION, 'VERSION')
+                    [Controller::VERSION, 'VERSION']
                 );
         }
     }

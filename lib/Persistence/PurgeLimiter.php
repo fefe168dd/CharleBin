@@ -35,7 +35,7 @@ class PurgeLimiter extends AbstractPersistence
      *
      * @access public
      * @static
-     * @param  int $limit
+     * @param int $limit
      */
     public static function setLimit($limit)
     {
@@ -48,10 +48,15 @@ class PurgeLimiter extends AbstractPersistence
      * @access public
      * @static
      * @param Configuration $conf
+     * @throws \Exception
+     * @throws \Exception
      */
     public static function setConfiguration(Configuration $conf)
     {
-        self::setLimit($conf->getKey('limit', 'purge'));
+        try {
+            self::setLimit($conf->getKey('limit', 'purge'));
+        } catch (\Exception $e) {
+        }
     }
 
     /**
@@ -68,8 +73,8 @@ class PurgeLimiter extends AbstractPersistence
             return true;
         }
 
-        $now  = time();
-        $pl   = (int) self::$_store->getValue('purge_limiter');
+        $now = time();
+        $pl = (int) self::$_store->getValue('purge_limiter');
         if ($pl + self::$_limit >= $now) {
             return false;
         }

@@ -28,21 +28,21 @@ class Controller
      *
      * @const string
      */
-    const VERSION = '1.5.1';
+    public const VERSION = '1.5.1';
 
     /**
      * minimal required PHP version
      *
      * @const string
      */
-    const MIN_PHP_VERSION = '5.6.0';
+    public const MIN_PHP_VERSION = '5.6.0';
 
     /**
      * show the same error message if the paste expired or does not exist
      *
      * @const string
      */
-    const GENERIC_ERROR = 'Paste does not exist, has expired or has been deleted.';
+    public const GENERIC_ERROR = 'Paste does not exist, has expired or has been deleted.';
 
     /**
      * configuration
@@ -113,9 +113,6 @@ class Controller
         if (version_compare(PHP_VERSION, self::MIN_PHP_VERSION) < 0) {
             throw new Exception(I18n::_('%s requires php %s or above to work. Sorry.', I18n::_('PrivateBin'), self::MIN_PHP_VERSION), 1);
         }
-        if (strlen(PATH) < 0 && substr(PATH, -1) !== DIRECTORY_SEPARATOR) {
-            throw new Exception(I18n::_('%s requires the PATH to end in a "%s". Please update the PATH in your index.php.', I18n::_('PrivateBin'), DIRECTORY_SEPARATOR), 5);
-        }
 
         // load config from ini file, initialize required classes
         $this->_init();
@@ -161,9 +158,9 @@ class Controller
      */
     private function _init()
     {
-        $this->_conf    = new Configuration;
-        $this->_model   = new Model($this->_conf);
-        $this->_request = new Request;
+        $this->_conf = new Configuration();
+        $this->_model = new Model($this->_conf);
+        $this->_request = new Request();
         $this->_urlBase = $this->_request->getRequestUri();
 
         // set default language
@@ -194,9 +191,11 @@ class Controller
      * pasteid (optional) = in discussion, which paste this comment belongs to.
      *
      * @access private
-     * @return string
+     * @return void
+     * @throws Exception
+     * @throws Exception
      */
-    private function _create()
+    private function _create(): void
     {
         // Ensure last paste from visitors IP address was more than configured amount of seconds ago.
         ServerSalt::setStore($this->_model->getStore());
@@ -209,7 +208,7 @@ class Controller
             return;
         }
 
-        $data      = $this->_request->getData();
+        $data = $this->_request->getData();
         $isComment = array_key_exists('pasteid', $data) &&
             !empty($data['pasteid']) &&
             array_key_exists('parentid', $data) &&
@@ -218,7 +217,10 @@ class Controller
             $this->_return_message(1, I18n::_('Invalid data.'));
             return;
         }
-        $sizelimit = $this->_conf->getKey('sizelimit');
+        try {
+            $sizelimit = $this->_conf->getKey('sizelimit');
+        } catch (Exception $e) {
+        }
         // Ensure content is not too big.
         if (strlen($data['ct']) > $sizelimit) {
             $this->_return_message(
@@ -247,8 +249,7 @@ class Controller
             } else {
                 $this->_return_message(1, I18n::_('Invalid data.'));
             }
-        }
-        // The user posts a standard paste.
+        } // The user posts a standard paste.
         else {
             $this->_model->purge();
             $paste = $this->_model->getPaste();
@@ -256,9 +257,10 @@ class Controller
                 $paste->setData($data);
                 $paste->store();
             } catch (Exception $e) {
-                return $this->_return_message(1, $e->getMessage());
+                $this->_return_message(1, $e->getMessage());
+                return;
             }
-            $this->_return_message(0, $paste->getId(), array('deletetoken' => $paste->getDeleteToken()));
+            $this->_return_message(0, $paste->getId(), ['deletetoken' => $paste->getDeleteToken()]);
         }
     }
 
@@ -266,8 +268,8 @@ class Controller
      * Delete an existing paste
      *
      * @access private
-     * @param  string $dataid
-     * @param  string $deletetoken
+     * @param string $dataid
+     * @param string $deletetoken
      */
     private function _delete($dataid, $deletetoken)
     {
@@ -303,7 +305,7 @@ class Controller
      * Read an existing paste or comment, only allowed via a JSON API call
      *
      * @access private
-     * @param  string $dataid
+     * @param string $dataid
      */
     private function _read($dataid)
     {
@@ -318,7 +320,7 @@ class Controller
                 if (array_key_exists('salt', $data['meta'])) {
                     unset($data['meta']['salt']);
                 }
-                $this->_return_message(0, $dataid, (array) $data);
+                $this->_return_message(0, $dataid, $data);
             } else {
                 $this->_return_message(1, self::GENERIC_ERROR);
             }
@@ -341,7 +343,10 @@ class Controller
         header('Expires: ' . $time);
         header('Last-Modified: ' . $time);
         header('Vary: Accept');
-        header('Content-Security-Policy: ' . $this->_conf->getKey('cspheader'));
+        try {
+            header('Content-Security-Policy: ' . $this->_conf->getKey('cspheader'));
+        } catch (Exception $e) {
+        }
         header('Cross-Origin-Resource-Policy: same-origin');
         header('Cross-Origin-Embedder-Policy: require-corp');
         // disabled, because it prevents links from a paste to the same site to
@@ -355,66 +360,138 @@ class Controller
         header('X-XSS-Protection: 1; mode=block');
 
         // label all the expiration options
-        $expire = array();
-        foreach ($this->_conf->getSection('expire_options') as $time => $seconds) {
-            $expire[$time] = ($seconds == 0) ? I18n::_(ucfirst($time)) : Filter::formatHumanReadableTime($time);
+        $expire = [];
+        try {
+            foreach ($this->_conf->getSection('expire_options') as $time => $seconds) {
+                try {
+                    $expire[$time] = ($seconds == 0) ? I18n::_(ucfirst($time)) : Filter::formatHumanReadableTime($time);
+                } catch (Exception $e) {
+                }
+            }
+        } catch (Exception $e) {
         }
 
         // translate all the formatter options
-        $formatters = array_map('PrivateBin\\I18n::_', $this->_conf->getSection('formatter_options'));
+        try {
+            $formatters = array_map('PrivateBin\\I18n::_', $this->_conf->getSection('formatter_options'));
+        } catch (Exception $e) {
+        }
 
         // set language cookie if that functionality was enabled
         $languageselection = '';
-        if ($this->_conf->getKey('languageselection')) {
-            $languageselection = I18n::getLanguage();
-            setcookie('lang', $languageselection, 0, '', '', true);
+        try {
+            if ($this->_conf->getKey('languageselection')) {
+                $languageselection = I18n::getLanguage();
+                setcookie('lang', $languageselection, 0, '', '', true);
+            }
+        } catch (Exception $e) {
         }
 
         // strip policies that are unsupported in meta tag
-        $metacspheader = str_replace(
-            array(
-                'frame-ancestors \'none\'; ',
-                '; sandbox allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-downloads',
-            ),
-            '',
-            $this->_conf->getKey('cspheader')
-        );
+        try {
+            $metacspheader = str_replace(
+                [
+                    'frame-ancestors \'none\'; ',
+                    '; sandbox allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-downloads',
+                ],
+                '',
+                $this->_conf->getKey('cspheader')
+            );
+        } catch (Exception $e) {
+        }
 
-        $page = new View;
+        $page = new View();
         $page->assign('CSPHEADER', $metacspheader);
         $page->assign('ERROR', I18n::_($this->_error));
-        $page->assign('NAME', $this->_conf->getKey('name'));
+        try {
+            $page->assign('NAME', $this->_conf->getKey('name'));
+        } catch (Exception $e) {
+        }
         if ($this->_request->getOperation() === 'yourlsproxy') {
             $page->assign('SHORTURL', $this->_status);
-            $page->draw('yourlsproxy');
+            try {
+                $page->draw('yourlsproxy');
+            } catch (Exception $e) {
+            }
             return;
         }
-        $page->assign('BASEPATH', I18n::_($this->_conf->getKey('basepath')));
+        try {
+            $page->assign('BASEPATH', I18n::_($this->_conf->getKey('basepath')));
+        } catch (Exception $e) {
+        }
         $page->assign('STATUS', I18n::_($this->_status));
         $page->assign('VERSION', self::VERSION);
-        $page->assign('DISCUSSION', $this->_conf->getKey('discussion'));
-        $page->assign('OPENDISCUSSION', $this->_conf->getKey('opendiscussion'));
+        try {
+            $page->assign('DISCUSSION', $this->_conf->getKey('discussion'));
+        } catch (Exception $e) {
+        }
+        try {
+            $page->assign('OPENDISCUSSION', $this->_conf->getKey('opendiscussion'));
+        } catch (Exception $e) {
+        }
         $page->assign('MARKDOWN', array_key_exists('markdown', $formatters));
         $page->assign('SYNTAXHIGHLIGHTING', array_key_exists('syntaxhighlighting', $formatters));
-        $page->assign('SYNTAXHIGHLIGHTINGTHEME', $this->_conf->getKey('syntaxhighlightingtheme'));
+        try {
+            $page->assign('SYNTAXHIGHLIGHTINGTHEME', $this->_conf->getKey('syntaxhighlightingtheme'));
+        } catch (Exception $e) {
+        }
         $page->assign('FORMATTER', $formatters);
-        $page->assign('FORMATTERDEFAULT', $this->_conf->getKey('defaultformatter'));
-        $page->assign('INFO', I18n::_(str_replace("'", '"', $this->_conf->getKey('info'))));
-        $page->assign('NOTICE', I18n::_($this->_conf->getKey('notice')));
-        $page->assign('BURNAFTERREADINGSELECTED', $this->_conf->getKey('burnafterreadingselected'));
-        $page->assign('PASSWORD', $this->_conf->getKey('password'));
-        $page->assign('FILEUPLOAD', $this->_conf->getKey('fileupload'));
-        $page->assign('ZEROBINCOMPATIBILITY', $this->_conf->getKey('zerobincompatibility'));
+        try {
+            $page->assign('FORMATTERDEFAULT', $this->_conf->getKey('defaultformatter'));
+        } catch (Exception $e) {
+        }
+        try {
+            $page->assign('INFO', I18n::_(str_replace("'", '"', $this->_conf->getKey('info'))));
+        } catch (Exception $e) {
+        }
+        try {
+            $page->assign('NOTICE', I18n::_($this->_conf->getKey('notice')));
+        } catch (Exception $e) {
+        }
+        try {
+            $page->assign('BURNAFTERREADINGSELECTED', $this->_conf->getKey('burnafterreadingselected'));
+        } catch (Exception $e) {
+        }
+        try {
+            $page->assign('PASSWORD', $this->_conf->getKey('password'));
+        } catch (Exception $e) {
+        }
+        try {
+            $page->assign('FILEUPLOAD', $this->_conf->getKey('fileupload'));
+        } catch (Exception $e) {
+        }
+        try {
+            $page->assign('ZEROBINCOMPATIBILITY', $this->_conf->getKey('zerobincompatibility'));
+        } catch (Exception $e) {
+        }
         $page->assign('LANGUAGESELECTION', $languageselection);
         $page->assign('LANGUAGES', I18n::getLanguageLabels(I18n::getAvailableLanguages()));
         $page->assign('EXPIRE', $expire);
-        $page->assign('EXPIREDEFAULT', $this->_conf->getKey('default', 'expire'));
-        $page->assign('URLSHORTENER', $this->_conf->getKey('urlshortener'));
-        $page->assign('QRCODE', $this->_conf->getKey('qrcode'));
-        $page->assign('HTTPWARNING', $this->_conf->getKey('httpwarning'));
+        try {
+            $page->assign('EXPIREDEFAULT', $this->_conf->getKey('default', 'expire'));
+        } catch (Exception $e) {
+        }
+        try {
+            $page->assign('URLSHORTENER', $this->_conf->getKey('urlshortener'));
+        } catch (Exception $e) {
+        }
+        try {
+            $page->assign('QRCODE', $this->_conf->getKey('qrcode'));
+        } catch (Exception $e) {
+        }
+        try {
+            $page->assign('HTTPWARNING', $this->_conf->getKey('httpwarning'));
+        } catch (Exception $e) {
+        }
         $page->assign('HTTPSLINK', 'https://' . $this->_request->getHost() . $this->_request->getRequestUri());
-        $page->assign('COMPRESSION', $this->_conf->getKey('compression'));
-        $page->draw($this->_conf->getKey('template'));
+        try {
+            $page->assign('COMPRESSION', $this->_conf->getKey('compression'));
+        } catch (Exception $e) {
+        }
+        try {
+            $page->draw($this->_conf->getKey('template'));
+        } catch (Exception $e) {
+        }
     }
 
     /**
@@ -425,14 +502,13 @@ class Controller
      */
     private function _jsonld($type)
     {
-        if (
-            $type !== 'paste' && $type !== 'comment' &&
+        if ($type !== 'paste' && $type !== 'comment' &&
             $type !== 'pastemeta' && $type !== 'commentmeta'
         ) {
             $type = '';
         }
         $content = '{}';
-        $file    = PUBLIC_PATH . DIRECTORY_SEPARATOR . 'js' . DIRECTORY_SEPARATOR . $type . '.jsonld';
+        $file = PUBLIC_PATH . DIRECTORY_SEPARATOR . 'js' . DIRECTORY_SEPARATOR . $type . '.jsonld';
         if (is_readable($file)) {
             $content = str_replace(
                 '?jsonld=',
@@ -467,20 +543,25 @@ class Controller
      * prepares JSON encoded status message
      *
      * @access private
-     * @param  int $status
-     * @param  string $message
-     * @param  array $other
+     * @param int $status
+     * @param string $message
+     * @param array $other
+     * @throws Exception
+     * @throws Exception
      */
-    private function _return_message($status, $message, $other = array())
+    private function _return_message($status, $message, $other = [])
     {
-        $result = array('status' => $status);
+        $result = ['status' => $status];
         if ($status) {
             $result['message'] = I18n::_($message);
         } else {
-            $result['id']  = $message;
+            $result['id'] = $message;
             $result['url'] = $this->_urlBase . '?' . $message;
         }
         $result += $other;
-        $this->_json = Json::encode($result);
+        try {
+            $this->_json = Json::encode($result);
+        } catch (Exception $e) {
+        }
     }
 }

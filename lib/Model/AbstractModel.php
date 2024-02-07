@@ -1,4 +1,5 @@
 <?php
+
 /**
  * PrivateBin
  *
@@ -37,7 +38,7 @@ abstract class AbstractModel
      * @access protected
      * @var array
      */
-    protected $_data = array('meta' => array());
+    protected $_data = ['meta' => []];
 
     /**
      * Configuration.
@@ -59,13 +60,13 @@ abstract class AbstractModel
      * Instance constructor.
      *
      * @access public
-     * @param  Configuration $configuration
-     * @param  AbstractData $storage
+     * @param Configuration $configuration
+     * @param AbstractData $storage
      */
     public function __construct(Configuration $configuration, AbstractData $storage)
     {
-        $this->_conf       = $configuration;
-        $this->_store      = $storage;
+        $this->_conf = $configuration;
+        $this->_store = $storage;
     }
 
     /**
@@ -98,7 +99,7 @@ abstract class AbstractModel
      * Set data and recalculate ID.
      *
      * @access public
-     * @param  array $data
+     * @param array $data
      * @throws Exception
      */
     public function setData(array $data)
@@ -151,7 +152,7 @@ abstract class AbstractModel
      *
      * @access public
      * @static
-     * @param  string $id
+     * @param string $id
      * @return bool
      */
     public static function isValidId($id)
@@ -163,7 +164,7 @@ abstract class AbstractModel
      * Sanitizes data to conform with current configuration.
      *
      * @access protected
-     * @param  array $data
+     * @param array $data
      * @return array
      */
     abstract protected function _sanitize(array $data);
@@ -172,10 +173,8 @@ abstract class AbstractModel
      * Validate data.
      *
      * @access protected
-     * @param  array $data
+     * @param array $data
      * @throws Exception
      */
-    protected function _validate(array $data)
-    {
-    }
+    protected function _validate(array $data) {}
 }

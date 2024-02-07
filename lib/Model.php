@@ -51,12 +51,17 @@ class Model
      *
      * @param string $pasteId
      * @return Paste
+     * @throws \Exception
+     * @throws \Exception
      */
     public function getPaste($pasteId = null)
     {
         $paste = new Paste($this->_conf, $this->getStore());
         if ($pasteId !== null) {
-            $paste->setId($pasteId);
+            try {
+                $paste->setId($pasteId);
+            } catch (\Exception $e) {
+            }
         }
         return $paste;
     }
@@ -69,7 +74,10 @@ class Model
         PurgeLimiter::setConfiguration($this->_conf);
         PurgeLimiter::setStore($this->getStore());
         if (PurgeLimiter::canPurge()) {
-            $this->getStore()->purge($this->_conf->getKey('batchsize', 'purge'));
+            try {
+                $this->getStore()->purge($this->_conf->getKey('batchsize', 'purge'));
+            } catch (\Exception $e) {
+            }
         }
     }
 
@@ -77,12 +85,20 @@ class Model
      * Gets, and creates if neccessary, a store object
      *
      * @return Data\AbstractData
+     * @throws \Exception
+     * @throws \Exception
      */
     public function getStore()
     {
         if ($this->_store === null) {
-            $class        = 'PrivateBin\\Data\\' . $this->_conf->getKey('class', 'model');
-            $this->_store = new $class($this->_conf->getSection('model_options'));
+            try {
+                $class = 'PrivateBin\\Data\\' . $this->_conf->getKey('class', 'model');
+            } catch (\Exception $e) {
+            }
+            try {
+                $this->_store = new $class($this->_conf->getSection('model_options'));
+            } catch (\Exception $e) {
+            }
         }
         return $this->_store;
     }

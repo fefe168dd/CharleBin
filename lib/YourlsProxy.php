@@ -45,38 +45,48 @@ class YourlsProxy
      *
      * @access public
      * @param string $link
+     * @throws Exception
+     * @throws Exception
      */
     public function __construct(Configuration $conf, $link)
     {
-        if (strpos($link, $conf->getKey('basepath') . '?') === false) {
+        if (!str_contains($link, $conf->getKey('basepath') . '?')) {
             $this->_error = 'Trying to shorten a URL that isn\'t pointing at our instance.';
             return;
         }
 
-        $yourls_api_url = $conf->getKey('apiurl', 'yourls');
+        try {
+            $yourls_api_url = $conf->getKey('apiurl', 'yourls');
+        } catch (Exception $e) {
+        }
         if (empty($yourls_api_url)) {
             $this->_error = 'Error calling YOURLS. Probably a configuration issue, like wrong or missing "apiurl" or "signature".';
             return;
         }
 
-        $data = file_get_contents(
-            $yourls_api_url, false, stream_context_create(
-                array(
-                    'http' => array(
-                        'method'  => 'POST',
-                        'header'  => "Content-Type: application/x-www-form-urlencoded\r\n",
-                        'content' => http_build_query(
-                            array(
-                                'signature' => $conf->getKey('signature', 'yourls'),
-                                'format'    => 'json',
-                                'action'    => 'shorturl',
-                                'url'       => $link,
-                            )
-                        ),
-                    ),
+        try {
+            $data = file_get_contents(
+                $yourls_api_url,
+                false,
+                stream_context_create(
+                    [
+                        'http' => [
+                            'method' => 'POST',
+                            'header' => "Content-Type: application/x-www-form-urlencoded\r\n",
+                            'content' => http_build_query(
+                                [
+                                    'signature' => $conf->getKey('signature', 'yourls'),
+                                    'format' => 'json',
+                                    'action' => 'shorturl',
+                                    'url' => $link,
+                                ]
+                            ),
+                        ],
+                    ]
                 )
-            )
-        );
+            );
+        } catch (Exception $e) {
+        }
         try {
             $data = Json::decode($data);
         } catch (Exception $e) {
@@ -85,8 +95,7 @@ class YourlsProxy
             return;
         }
 
-        if (
-            !is_null($data) &&
+        if (!is_null($data) &&
             array_key_exists('statusCode', $data) &&
             $data['statusCode'] == 200 &&
             array_key_exists('shorturl', $data)

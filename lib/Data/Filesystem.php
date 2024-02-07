@@ -13,6 +13,7 @@
 namespace PrivateBin\Data;
 
 use Exception;
+use GlobIterator;
 use PrivateBin\Json;
 
 /**
@@ -33,24 +34,24 @@ class Filesystem extends AbstractData
      * @link  https://man7.org/linux/man-pages/man7/glob.7.html
      * @const string
      */
-    const PASTE_FILE_PATTERN = DIRECTORY_SEPARATOR . '[a-f0-9][a-f0-9]' .
-        DIRECTORY_SEPARATOR . '[a-f0-9][a-f0-9]' . DIRECTORY_SEPARATOR .
-        '[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]' .
-        '[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]*';
+    public const PASTE_FILE_PATTERN = DIRECTORY_SEPARATOR . '[a-f0-9][a-f0-9]' .
+    DIRECTORY_SEPARATOR . '[a-f0-9][a-f0-9]' . DIRECTORY_SEPARATOR .
+    '[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]' .
+    '[a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9][a-f0-9]*';
 
     /**
      * first line in paste or comment files, to protect their contents from browsing exposed data directories
      *
      * @const string
      */
-    const PROTECTION_LINE = '<?php http_response_code(403); /*';
+    public const PROTECTION_LINE = '<?php http_response_code(403); /*';
 
     /**
      * line in generated .htaccess files, to protect exposed directories from being browsable on apache web servers
      *
      * @const string
      */
-    const HTACCESS_LINE = 'Require all denied';
+    public const HTACCESS_LINE = 'Require all denied';
 
     /**
      * path in which to persist something
@@ -64,15 +65,12 @@ class Filesystem extends AbstractData
      * instantiates a new Filesystem data backend
      *
      * @access public
-     * @param  array $options
-     * @return
+     * @param array $options
      */
     public function __construct(array $options)
     {
         // if given update the data directory
-        if (
-            is_array($options) &&
-            array_key_exists('dir', $options)
+        if (array_key_exists('dir', $options)
         ) {
             $this->_path = $options['dir'];
         }
@@ -82,19 +80,19 @@ class Filesystem extends AbstractData
      * Create a paste.
      *
      * @access public
-     * @param  string $pasteid
-     * @param  array  $paste
+     * @param string $pasteid
+     * @param array $paste
      * @return bool
      */
     public function create($pasteid, array $paste)
     {
         $storagedir = $this->_dataid2path($pasteid);
-        $file       = $storagedir . $pasteid . '.php';
+        $file = $storagedir . $pasteid . '.php';
         if (is_file($file)) {
             return false;
         }
         if (!is_dir($storagedir)) {
-            mkdir($storagedir, 0700, true);
+            mkdir($storagedir, 0o700, true);
         }
         return $this->_store($file, $paste);
     }
@@ -103,13 +101,12 @@ class Filesystem extends AbstractData
      * Read a paste.
      *
      * @access public
-     * @param  string $pasteid
+     * @param string $pasteid
      * @return array|false
      */
     public function read($pasteid)
     {
-        if (
-            !$this->exists($pasteid) ||
+        if (!$this->exists($pasteid) ||
             !$paste = $this->_get($this->_dataid2path($pasteid) . $pasteid . '.php')
         ) {
             return false;
@@ -121,7 +118,7 @@ class Filesystem extends AbstractData
      * Delete a paste and its discussion.
      *
      * @access public
-     * @param  string $pasteid
+     * @param string $pasteid
      */
     public function delete($pasteid)
     {
@@ -152,12 +149,12 @@ class Filesystem extends AbstractData
      * Test if a paste exists.
      *
      * @access public
-     * @param  string $pasteid
+     * @param string $pasteid
      * @return bool
      */
     public function exists($pasteid)
     {
-        $basePath  = $this->_dataid2path($pasteid) . $pasteid;
+        $basePath = $this->_dataid2path($pasteid) . $pasteid;
         $pastePath = $basePath . '.php';
         // convert to PHP protected files if needed
         if (is_readable($basePath)) {
@@ -168,7 +165,7 @@ class Filesystem extends AbstractData
             if (is_dir($discdir)) {
                 $dir = dir($discdir);
                 while (false !== ($filename = $dir->read())) {
-                    if (substr($filename, -4) !== '.php' && strlen($filename) >= 16) {
+                    if (!str_ends_with($filename, '.php') && strlen($filename) >= 16) {
                         $commentFilename = $discdir . $filename . '.php';
                         $this->_prependRename($discdir . $filename, $commentFilename);
                     }
@@ -183,21 +180,21 @@ class Filesystem extends AbstractData
      * Create a comment in a paste.
      *
      * @access public
-     * @param  string $pasteid
-     * @param  string $parentid
-     * @param  string $commentid
-     * @param  array  $comment
+     * @param string $pasteid
+     * @param string $parentid
+     * @param string $commentid
+     * @param array $comment
      * @return bool
      */
     public function createComment($pasteid, $parentid, $commentid, array $comment)
     {
         $storagedir = $this->_dataid2discussionpath($pasteid);
-        $file       = $storagedir . $pasteid . '.' . $commentid . '.' . $parentid . '.php';
+        $file = $storagedir . $pasteid . '.' . $commentid . '.' . $parentid . '.php';
         if (is_file($file)) {
             return false;
         }
         if (!is_dir($storagedir)) {
-            mkdir($storagedir, 0700, true);
+            mkdir($storagedir, 0o700, true);
         }
         return $this->_store($file, $comment);
     }
@@ -206,13 +203,13 @@ class Filesystem extends AbstractData
      * Read all comments of paste.
      *
      * @access public
-     * @param  string $pasteid
+     * @param string $pasteid
      * @return array
      */
     public function readComments($pasteid)
     {
-        $comments = array();
-        $discdir  = $this->_dataid2discussionpath($pasteid);
+        $comments = [];
+        $discdir = $this->_dataid2discussionpath($pasteid);
         if (is_dir($discdir)) {
             $dir = dir($discdir);
             while (false !== ($filename = $dir->read())) {
@@ -222,14 +219,15 @@ class Filesystem extends AbstractData
                 // - parentid is the comment this comment replies to (It can be pasteid)
                 if (is_file($discdir . $filename)) {
                     $comment = $this->_get($discdir . $filename);
-                    $items   = explode('.', $filename);
+                    $items = explode('.', $filename);
                     // Add some meta information not contained in file.
-                    $comment['id']       = $items[1];
+                    $comment['id'] = $items[1];
                     $comment['parentid'] = $items[2];
 
                     // Store in array
-                    $key            = $this->getOpenSlot(
-                        $comments, (
+                    $key = $this->getOpenSlot(
+                        $comments,
+                        (
                             (int) array_key_exists('created', $comment['meta']) ?
                             $comment['meta']['created'] : // v2 comments
                             $comment['meta']['postdate'] // v1 comments
@@ -250,9 +248,9 @@ class Filesystem extends AbstractData
      * Test if a comment exists.
      *
      * @access public
-     * @param  string $pasteid
-     * @param  string $parentid
-     * @param  string $commentid
+     * @param string $pasteid
+     * @param string $parentid
+     * @param string $commentid
      * @return bool
      */
     public function existsComment($pasteid, $parentid, $commentid)
@@ -267,9 +265,9 @@ class Filesystem extends AbstractData
      * Save a value.
      *
      * @access public
-     * @param  string $value
-     * @param  string $namespace
-     * @param  string $key
+     * @param string $value
+     * @param string $namespace
+     * @param string $key
      * @return bool
      */
     public function setValue($value, $namespace, $key = '')
@@ -299,8 +297,8 @@ class Filesystem extends AbstractData
      * Load a value.
      *
      * @access public
-     * @param  string $namespace
-     * @param  string $key
+     * @param string $namespace
+     * @param string $key
      * @return string
      */
     public function getValue($namespace, $key = '')
@@ -340,40 +338,44 @@ class Filesystem extends AbstractData
      * get the data
      *
      * @access public
-     * @param  string $filename
+     * @param string $filename
      * @return array|false $data
+     * @throws Exception
+     * @throws Exception
      */
     private function _get($filename)
     {
-        return Json::decode(
-            substr(
-                file_get_contents($filename),
-                strlen(self::PROTECTION_LINE . PHP_EOL)
-            )
-        );
+        try {
+            return Json::decode(
+                substr(
+                    file_get_contents($filename),
+                    strlen(self::PROTECTION_LINE . PHP_EOL)
+                )
+            );
+        } catch (Exception $e) {
+        }
     }
 
     /**
      * Returns up to batch size number of paste ids that have expired
      *
      * @access private
-     * @param  int $batchsize
+     * @param int $batchsize
      * @return array
      */
     protected function _getExpiredPastes($batchsize)
     {
-        $pastes = array();
-        $count  = 0;
+        $pastes = [];
+        $count = 0;
         $opened = 0;
-        $limit  = $batchsize * 10; // try at most 10 times $batchsize pastes before giving up
-        $time   = time();
-        $files  = $this->getAllPastes();
+        $limit = $batchsize * 10; // try at most 10 times $batchsize pastes before giving up
+        $time = time();
+        $files = $this->getAllPastes();
         shuffle($files);
         foreach ($files as $pasteid) {
             if ($this->exists($pasteid)) {
                 $data = $this->read($pasteid);
-                if (
-                    array_key_exists('expire_date', $data['meta']) &&
+                if (array_key_exists('expire_date', $data['meta']) &&
                     $data['meta']['expire_date'] < $time
                 ) {
                     $pastes[] = $pasteid;
@@ -394,8 +396,8 @@ class Filesystem extends AbstractData
      */
     public function getAllPastes()
     {
-        $pastes = array();
-        foreach (new \GlobIterator($this->_path . self::PASTE_FILE_PATTERN) as $file) {
+        $pastes = [];
+        foreach (new GlobIterator($this->_path . self::PASTE_FILE_PATTERN) as $file) {
             if ($file->isFile()) {
                 $pastes[] = $file->getBasename('.php');
             }
@@ -414,7 +416,7 @@ class Filesystem extends AbstractData
      * eg. input 'e3570978f9e4aa90' --> output 'data/e3/57/'
      *
      * @access private
-     * @param  string $dataid
+     * @param string $dataid
      * @return string
      */
     private function _dataid2path($dataid)
@@ -430,7 +432,7 @@ class Filesystem extends AbstractData
      * eg. input 'e3570978f9e4aa90' --> output 'data/e3/57/e3570978f9e4aa90.discussion/'
      *
      * @access private
-     * @param  string $dataid
+     * @param string $dataid
      * @return string
      */
     private function _dataid2discussionpath($dataid)
@@ -443,8 +445,8 @@ class Filesystem extends AbstractData
      * store the data
      *
      * @access public
-     * @param  string $filename
-     * @param  array  $data
+     * @param string $filename
+     * @param array $data
      * @return bool
      */
     private function _store($filename, array $data)
@@ -463,15 +465,15 @@ class Filesystem extends AbstractData
      * store a string
      *
      * @access public
-     * @param  string $filename
-     * @param  string $data
+     * @param string $filename
+     * @param string $data
      * @return bool
      */
     private function _storeString($filename, $data)
     {
         // Create storage directory if it does not exist.
         if (!is_dir($this->_path)) {
-            if (!@mkdir($this->_path, 0700)) {
+            if (!@mkdir($this->_path, 0o700)) {
                 return false;
             }
         }
@@ -485,8 +487,7 @@ class Filesystem extends AbstractData
                     LOCK_EX
                 );
             }
-            if (
-                $fileCreated === false ||
+            if ($fileCreated === false ||
                 $writtenBytes === false ||
                 $writtenBytes < strlen(self::HTACCESS_LINE . PHP_EOL)
             ) {
@@ -494,7 +495,7 @@ class Filesystem extends AbstractData
             }
         }
 
-        $fileCreated  = true;
+        $fileCreated = true;
         $writtenBytes = 0;
         if (!is_file($filename)) {
             $fileCreated = @touch($filename);
@@ -505,7 +506,7 @@ class Filesystem extends AbstractData
         if ($fileCreated === false || $writtenBytes === false || $writtenBytes < strlen($data)) {
             return false;
         }
-        @chmod($filename, 0640); // protect file from access by other users on the host
+        @chmod($filename, 0o640); // protect file from access by other users on the host
         return true;
     }
 
@@ -513,8 +514,8 @@ class Filesystem extends AbstractData
      * rename a file, prepending the protection line at the beginning
      *
      * @access public
-     * @param  string $srcFile
-     * @param  string $destFile
+     * @param string $srcFile
+     * @param string $destFile
      * @return void
      */
     private function _prependRename($srcFile, $destFile)

@@ -26,21 +26,21 @@ class Request
      *
      * @const string
      */
-    const MIME_JSON = 'application/json';
+    public const MIME_JSON = 'application/json';
 
     /**
      * MIME type for HTML
      *
      * @const string
      */
-    const MIME_HTML = 'text/html';
+    public const MIME_HTML = 'text/html';
 
     /**
      * MIME type for XHTML
      *
      * @const string
      */
-    const MIME_XHTML = 'application/xhtml+xml';
+    public const MIME_XHTML = 'application/xhtml+xml';
 
     /**
      * Input stream to use for PUT parameter parsing
@@ -64,7 +64,7 @@ class Request
      * @access private
      * @var array
      */
-    private $_params = array();
+    private $_params = [];
 
     /**
      * If we are in a JSON API context
@@ -123,8 +123,7 @@ class Request
             default:
                 $this->_params = $_GET;
         }
-        if (
-            !array_key_exists('pasteid', $this->_params) &&
+        if (!array_key_exists('pasteid', $this->_params) &&
             !array_key_exists('jsonld', $this->_params) &&
             !array_key_exists('link', $this->_params) &&
             array_key_exists('QUERY_STRING', $_SERVER) &&
@@ -143,7 +142,7 @@ class Request
         } elseif (array_key_exists('jsonld', $this->_params) && !empty($this->_params['jsonld'])) {
             $this->_operation = 'jsonld';
         } elseif (array_key_exists('link', $this->_params) && !empty($this->_params['link'])) {
-            if (strpos($this->getRequestUri(), '/shortenviayourls') !== false) {
+            if (str_contains($this->getRequestUri(), '/shortenviayourls')) {
                 $this->_operation = 'yourlsproxy';
             }
         }
@@ -168,11 +167,11 @@ class Request
      */
     public function getData()
     {
-        $data = array(
+        $data = [
             'adata' => $this->getParam('adata'),
-        );
-        $required_keys = array('v', 'ct');
-        $meta          = $this->getParam('meta');
+        ];
+        $required_keys = ['v', 'ct'];
+        $meta = $this->getParam('meta');
         if (empty($meta)) {
             $required_keys[] = 'pasteid';
             $required_keys[] = 'parentid';
@@ -191,8 +190,8 @@ class Request
      * Get a request parameter
      *
      * @access public
-     * @param  string $param
-     * @param  string $default
+     * @param string $param
+     * @param string $default
      * @return string
      */
     public function getParam($param, $default = '')
@@ -223,8 +222,8 @@ class Request
     public function getRequestUri()
     {
         return array_key_exists('REQUEST_URI', $_SERVER) ?
-        htmlspecialchars(
-            parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)
+            htmlspecialchars(
+                parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)
             ) : '/';
     }
 
@@ -260,28 +259,28 @@ class Request
     private function _detectJsonRequest()
     {
         $hasAcceptHeader = array_key_exists('HTTP_ACCEPT', $_SERVER);
-        $acceptHeader    = $hasAcceptHeader ? $_SERVER['HTTP_ACCEPT'] : '';
+        $acceptHeader = $hasAcceptHeader ? $_SERVER['HTTP_ACCEPT'] : '';
 
         // simple cases
-        if (
-            (array_key_exists('HTTP_X_REQUESTED_WITH', $_SERVER) &&
+        if ((array_key_exists('HTTP_X_REQUESTED_WITH', $_SERVER) &&
                 $_SERVER['HTTP_X_REQUESTED_WITH'] == 'JSONHttpRequest') ||
             ($hasAcceptHeader &&
-                strpos($acceptHeader, self::MIME_JSON) !== false &&
-                strpos($acceptHeader, self::MIME_HTML) === false &&
-                strpos($acceptHeader, self::MIME_XHTML) === false)
+                str_contains($acceptHeader, self::MIME_JSON) &&
+                !str_contains($acceptHeader, self::MIME_HTML) &&
+                !str_contains($acceptHeader, self::MIME_XHTML))
         ) {
             return true;
         }
 
         // advanced case: media type negotiation
-        $mediaTypes = array();
+        $mediaTypes = [];
         if ($hasAcceptHeader) {
             $mediaTypeRanges = explode(',', trim($acceptHeader));
             foreach ($mediaTypeRanges as $mediaTypeRange) {
                 if (preg_match(
                     '#(\*/\*|[a-z\-]+/[a-z\-+*]+(?:\s*;\s*[^q]\S*)*)(?:\s*;\s*q\s*=\s*(0(?:\.\d{0,3})|1(?:\.0{0,3})))?#',
-                    trim($mediaTypeRange), $match
+                    trim($mediaTypeRange),
+                    $match
                 )) {
                     if (!isset($match[2])) {
                         $match[2] = '1.0';
@@ -289,7 +288,7 @@ class Request
                         $match[2] = (string) floatval($match[2]);
                     }
                     if (!isset($mediaTypes[$match[2]])) {
-                        $mediaTypes[$match[2]] = array();
+                        $mediaTypes[$match[2]] = [];
                     }
                     $mediaTypes[$match[2]][] = strtolower($match[1]);
                 }
@@ -300,12 +299,11 @@ class Request
                     continue;
                 }
                 foreach ($acceptedValues as $acceptedValue) {
-                    if (
-                        strpos($acceptedValue, self::MIME_HTML) === 0 ||
-                        strpos($acceptedValue, self::MIME_XHTML) === 0
+                    if (str_starts_with($acceptedValue, self::MIME_HTML) ||
+                        str_starts_with($acceptedValue, self::MIME_XHTML)
                     ) {
                         return false;
-                    } elseif (strpos($acceptedValue, self::MIME_JSON) === 0) {
+                    } elseif (str_starts_with($acceptedValue, self::MIME_JSON)) {
                         return true;
                     }
                 }

@@ -60,13 +60,12 @@ class Comment extends AbstractModel
         $this->_data['meta']['created'] = time();
 
         // store comment
-        if (
-            $this->_store->createComment(
-                $pasteid,
-                $this->getParentId(),
-                $this->getId(),
-                $this->_data
-            ) === false
+        if ($this->_store->createComment(
+            $pasteid,
+            $this->getParentId(),
+            $this->getId(),
+            $this->_data
+        ) === false
         ) {
             throw new Exception('Error saving comment. Sorry.', 70);
         }
@@ -107,7 +106,7 @@ class Comment extends AbstractModel
      */
     public function setPaste(Paste $paste)
     {
-        $this->_paste           = $paste;
+        $this->_paste = $paste;
         $this->_data['pasteid'] = $paste->getId();
     }
 
@@ -155,38 +154,43 @@ class Comment extends AbstractModel
      * Sanitizes data to conform with current configuration.
      *
      * @access protected
-     * @param  array $data
+     * @param array $data
      * @return array
+     * @throws Exception
+     * @throws Exception
      */
     protected function _sanitize(array $data)
     {
         // we generate an icon based on a SHA512 HMAC of the users IP, if configured
-        $icon = $this->_conf->getKey('icon');
+        try {
+            $icon = $this->_conf->getKey('icon');
+        } catch (Exception $e) {
+        }
         if ($icon != 'none') {
             $pngdata = '';
-            $hmac    = TrafficLimiter::getHash();
+            $hmac = TrafficLimiter::getHash();
             if ($icon == 'identicon') {
                 $identicon = new Identicon();
-                $pngdata   = $identicon->getImageDataUri($hmac, 16);
+                $pngdata = $identicon->getImageDataUri($hmac, 16);
             } elseif ($icon == 'jdenticon') {
-                $jdenticon = new Jdenticon(array(
-                    'hash'  => $hmac,
-                    'size'  => 16,
-                    'style' => array(
-                        'backgroundColor'   => '#fff0', // fully transparent, for dark mode
-                        'padding'           => 0,
-                    ),
-                ));
-                $pngdata   = $jdenticon->getImageDataUri('png');
+                $jdenticon = new Jdenticon([
+                    'hash' => $hmac,
+                    'size' => 16,
+                    'style' => [
+                        'backgroundColor' => '#fff0', // fully transparent, for dark mode
+                        'padding' => 0,
+                    ],
+                ]);
+                $pngdata = $jdenticon->getImageDataUri();
             } elseif ($icon == 'vizhash') {
-                $vh      = new Vizhash16x16();
+                $vh = new Vizhash16x16();
                 $pngdata = 'data:image/png;base64,' . base64_encode(
                     $vh->generate($hmac)
                 );
             }
             if ($pngdata != '') {
                 if (!array_key_exists('meta', $data)) {
-                    $data['meta'] = array();
+                    $data['meta'] = [];
                 }
                 $data['meta']['icon'] = $pngdata;
             }

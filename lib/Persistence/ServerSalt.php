@@ -41,10 +41,15 @@ class ServerSalt extends AbstractPersistence
      * @access public
      * @static
      * @return string
+     * @throws \Exception
+     * @throws \Exception
      */
     public static function generate()
     {
-        return bin2hex(random_bytes(256));
+        try {
+            return bin2hex(random_bytes(256));
+        } catch (\Exception $e) {
+        }
     }
 
     /**
@@ -77,7 +82,7 @@ class ServerSalt extends AbstractPersistence
      *
      * @access public
      * @static
-     * @param  AbstractData $store
+     * @param AbstractData $store
      */
     public static function setStore(AbstractData $store)
     {

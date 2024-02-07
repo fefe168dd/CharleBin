@@ -26,9 +26,9 @@ class Json
      *
      * @access public
      * @static
-     * @param  mixed $input
-     * @throws Exception
+     * @param mixed $input
      * @return string
+     * @throws Exception
      */
     public static function encode($input)
     {
@@ -42,9 +42,9 @@ class Json
      *
      * @access public
      * @static
-     * @param  string $input
-     * @throws Exception
+     * @param string $input
      * @return mixed
+     * @throws Exception
      */
     public static function decode($input)
     {
@@ -58,8 +58,8 @@ class Json
      *
      * @access private
      * @static
-     * @throws Exception
      * @return void
+     * @throws Exception
      */
     private static function _detectError()
     {

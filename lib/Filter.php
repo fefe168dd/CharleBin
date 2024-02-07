@@ -28,26 +28,21 @@ class Filter
      *
      * @access public
      * @static
-     * @param  string $time
-     * @throws Exception
+     * @param string $time
      * @return string
+     * @throws Exception
      */
     public static function formatHumanReadableTime($time)
     {
         if (preg_match('/^(\d+) *(\w+)$/', $time, $matches) !== 1) {
             throw new Exception("Error parsing time format '$time'", 30);
         }
-        switch ($matches[2]) {
-            case 'sec':
-                $unit = 'second';
-                break;
-            case 'min':
-                $unit = 'minute';
-                break;
-            default:
-                $unit = rtrim($matches[2], 's');
-        }
-        return I18n::_(array('%d ' . $unit, '%d ' . $unit . 's'), (int) $matches[1]);
+        $unit = match ($matches[2]) {
+            'sec' => 'second',
+            'min' => 'minute',
+            default => rtrim($matches[2], 's'),
+        };
+        return I18n::_(['%d ' . $unit, '%d ' . $unit . 's'], (int) $matches[1]);
     }
 
     /**
@@ -55,13 +50,13 @@ class Filter
      *
      * @access public
      * @static
-     * @param  int $size
+     * @param int $size
      * @return string
      */
     public static function formatHumanReadableSize($size)
     {
-        $iec = array('B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB');
-        $i   = 0;
+        $iec = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+        $i = 0;
         while (($size / 1024) >= 1) {
             $size = $size / 1024;
             ++$i;
